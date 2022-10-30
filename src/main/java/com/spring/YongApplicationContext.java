@@ -5,7 +5,9 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class YongApplicationContext {
@@ -15,10 +17,23 @@ public class YongApplicationContext {
 
     private Map<String, Object> singletonObjects = new HashMap<>();
 
+    private List<BeanPostProcessor> beanPostProcessorList = new ArrayList<>();
+
     public YongApplicationContext(Class configClass) {
         this.configClass = configClass;
         //扫描
         scan(configClass);
+
+        for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {
+            String beanName = entry.getKey();
+            BeanDefinition beanDefinition = entry.getValue();
+            if (beanDefinition.getScope().equals("singleton")) {
+
+                Object bean = createBean(beanName, beanDefinition);
+                singletonObjects.put(beanName, bean);
+
+            }
+        }
     }
 
     private void scan(Class configClass) {
@@ -34,7 +49,7 @@ public class YongApplicationContext {
                     String absolutePath = f.getAbsolutePath();
                     System.out.println(absolutePath);
                     absolutePath = absolutePath.substring(absolutePath.indexOf("com"), absolutePath.indexOf(".class"));
-                    absolutePath.replace("/", ".");
+                    absolutePath = absolutePath.replace("\\", ".");
 
                     try {
                         Class<?> aClass = classLoader.loadClass(absolutePath);
@@ -96,7 +111,21 @@ public class YongApplicationContext {
                 }
             }
 
+            if (instance instanceof BeanNameAware) {
+                ((BeanNameAware)instance).setBeanName(beanName);
+            }
 
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                instance = beanPostProcessor.postProcessBeforeInitialization(instance, beanName);
+            }
+
+            if (instance instanceof InitializingBean) {
+                ((InitializingBean)instance).afterPropertiesSet();
+            }
+
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                instance = beanPostProcessor.postProcessAfterInitialization(instance, beanName);
+            }
 
 
         } catch (InstantiationException e) {

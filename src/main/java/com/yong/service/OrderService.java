@@ -1,2 +1,10 @@
-package com.yong.service;public class OrderService {
+package com.yong.service;
+
+import com.spring.Component;
+
+@Component
+public class OrderService {
+    public void test() {
+        System.out.println("test");
+    }
 }
